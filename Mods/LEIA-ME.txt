@@ -1,0 +1,64 @@
+﻿LBA2 - GERENCIADOR DE MODS - Little Big Adventure 2
+=================================================
+
+COMO USAR
+  1. Dê dois cliques em "Gerenciador de Mods.bat".
+     (O Windows pede permissão de administrador porque o jogo fica em
+      "Arquivos de Programas". Clique em "Sim".)
+  2. Digite o número de um mod e aperte Enter para LIGAR ou DESLIGAR.
+  3. P = JOGAR com os mods escolhidos.
+     O = jogar a versão ORIGINAL da GOG (sem os mods).
+     R = voltar tudo ao jogo original.   Q = sair.
+     L = idioma (português/inglês) do gerenciador, dos textos dos mods e do
+         jogo aberto com P.
+
+OS MODS
+  Todos rodam na versão da comunidade do jogo, que é a que o P abre. Os
+  arquivos originais do jogo não são mudados. Ligar/desligar é na hora;
+  feche o jogo e abra de novo com P para valer.
+
+TECLAS DOS MODS
+  Natação:         automática na água funda e no gás de Zeelich
+                   (mais rápida no modo Atlético).
+  Jetpack livre:   com o Super Jetpack, E = sobe, Q = desce.
+  Pilotar naves:   V perto de uma nave = entrar/sair. Setas = frente/trás e
+                   virar, A / D = de lado, E / Q = subir/descer. Dá para
+                   montar no Dino-Fly também.
+  Câmera Orbital:  ao ar livre. A câmera se ajeita sozinha atrás do Twinsen.
+                   Mexa o mouse para olhar em volta; ela volta depois de um
+                   instante. Roda do mouse = zoom, Enter = câmera atrás dele.
+  Mundo Aberto:    é só seguir além da borda de uma ilha - nadando, voando
+                   de jetpack ou pilotando - e você chega ao mar aberto e às
+                   outras ilhas do mesmo planeta. Não dá para salvar em mar
+                   aberto. Mini holomapa (canto inferior esquerdo): a seta
+                   vermelha é o Twinsen. F12 + minimap esconde/mostra.
+                   Suba bem alto com a nave Esmer para chegar ao espaço; voe
+                   até outro mundo e você pousa nele.
+  Mundo Aberto: liberar pela história (adicional, use com o Mundo Aberto):
+                   as ilhas e os mundos que você ainda não alcançou na
+                   história ficam cobertos por uma cúpula transparente
+                   (os planetas, por uma camada branca).
+  Console do jogo: F12.
+
+INSTALAR UM MOD NOVO
+  Coloque a pasta do mod aqui dentro. Ele aparece na lista sozinho.
+
+SEGURANÇA
+  Na primeira vez que um arquivo do jogo é mudado, o original fica guardado
+  em "_backup_originais". NÃO apague essa pasta.
+  A versão da comunidade fica em ferramentas\motor (código aberto, licença
+  GPL; as mudanças estão em mods_motor.patch). Os saves dela ficam numa
+  pasta própria do Windows, separados dos saves da GOG.
+
+FAZER UM MOD
+  Uma pasta com:
+    mod.ini        nome, descrição, autor e versão              (obrigatório)
+                   (nome_pt / descricao_pt e nome_en / descricao_en: o texto
+                    em cada idioma do gerenciador)
+    textos.txt     muda textos/diálogos                          (opcional)
+    hqr\ARQUIVO.HQR\N.bin   troca a entrada N de Common\ARQUIVO.HQR (opcional)
+    arquivos\...   copia arquivos inteiros para a pasta do jogo  (opcional)
+  textos.txt:
+    [PT sys]                       <- idioma (EN FR DE ES IT PT ou *) e banco
+    71 = Novo Jogo                 <- número do texto = texto novo
+  Todos os textos originais, com os números, estão em ferramentas\referencia\
