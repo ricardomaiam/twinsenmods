@@ -1,3 +1,37 @@
+diff --git a/SOURCES/3DEXT/DECORS.CPP b/SOURCES/3DEXT/DECORS.CPP
+index 1a33067..58ecd58 100644
+--- a/SOURCES/3DEXT/DECORS.CPP
++++ b/SOURCES/3DEXT/DECORS.CPP
+@@ -155,6 +155,8 @@ void FixeObjetsDecorsInvisibles(void) {
+ #endif
+                 ptrobj->Body |= DEC_INVISIBLE;
+         }
++        if (ptrobj->Body & DEC_MOD_HIDE) // mod: virou ator (nave Esmer pilotavel)
++            ptrobj->Body |= DEC_INVISIBLE;
+     }
+ }
+ 
+@@ -305,6 +307,8 @@ void AffichageObjetDecorsZBuf(void) {
+                 ptrobj->Body |= DEC_INVISIBLE;
+             //			else	ptrobj->Body &= ~(DEC_INVISIBLE) ;
+         }
++        if (ptrobj->Body & DEC_MOD_HIDE) // mod: virou ator (nave Esmer pilotavel)
++            ptrobj->Body |= DEC_INVISIBLE;
+ 
+         // SEB le 12/04/96
+         if (!(ptrobj->Body & DEC_INVISIBLE)) {
+diff --git a/SOURCES/3DEXT/LBA_EXT.H b/SOURCES/3DEXT/LBA_EXT.H
+index f48e33e..0249578 100644
+--- a/SOURCES/3DEXT/LBA_EXT.H
++++ b/SOURCES/3DEXT/LBA_EXT.H
+@@ -123,6 +123,7 @@ typedef struct {
+ 
+ #define	DEC_INVISIBLE	(1<<16)	// objet invisible (sorte de GRM)
+ #define	DEC_DRAWN	(1<<17)	// objet affiché à l'ecran
++#define	DEC_MOD_HIDE	(1<<24)	// mod: escondido para sempre (virou ator)
+ 
+ typedef struct {
+ 		S32	Zrot ;
 diff --git a/SOURCES/3DEXT/LOADISLE.CPP b/SOURCES/3DEXT/LOADISLE.CPP
 index c7305ff..a692e60 100644
 --- a/SOURCES/3DEXT/LOADISLE.CPP
@@ -804,7 +838,7 @@ index 434f975..8ed9b3a 100644
          PLAYACF.CPP POF.CPP RAIN.CPP RECORD.CPP RECORD_FORMAT.CPP SETTINGS.CPP SAVEGAME.CPP SAVEGAME_WIRE.CPP SAVEGAME_LOAD_BOUNDS.CPP SAVENAME_VALIDATION.CPP SCAN.CPP SORT.CPP TOUCH_INPUT.CPP VALIDPOS.CPP VERSION.CPP WAGON.CPP ZV.CPP)
  # set(SOURCES_FILES_ASM COMPRESS.ASM FIRE.ASM FLOW_A.ASM FUNC.ASM GRILLE_A.ASM PLASMA.ASM)
 diff --git a/SOURCES/CONSOLE/CONSOLE_CMD.CPP b/SOURCES/CONSOLE/CONSOLE_CMD.CPP
-index a5e3ee7..4a56d26 100644
+index a5e3ee7..882a627 100644
 --- a/SOURCES/CONSOLE/CONSOLE_CMD.CPP
 +++ b/SOURCES/CONSOLE/CONSOLE_CMD.CPP
 @@ -33,6 +33,15 @@ extern S32 GfxDitherShading;
@@ -864,7 +898,7 @@ index a5e3ee7..4a56d26 100644
  static void cmd_load(int argc, const char *argv[]) {
      if (argc < 2) {
          Console_Print("Usage: load <save_name>");
-@@ -2670,6 +2713,40 @@ void Console_RegisterAll(void) {
+@@ -2670,6 +2713,41 @@ void Console_RegisterAll(void) {
                                "Cost when active is ~1 us/frame; zero when inactive.");
  
      Console_RegisterCvar("fps", &DebugFps, CONSOLE_CVAR_BOOL, "Frame rate display");
@@ -880,6 +914,7 @@ index a5e3ee7..4a56d26 100644
 +    Console_RegisterCvar("pilot_minsize", &PilotMinSize, CONSOLE_CVAR_INT, "Tamanho minimo para um objeto contar como nave");
 +    Console_RegisterCvar("pilot_dbg_anim", &PilotDbgAnim, CONSOLE_CVAR_INT, "Teste: anim generica forcada na nave (-1 = nao)");
 +    Console_RegisterCvar("pilot_dbg_body", &PilotDbgBody, CONSOLE_CVAR_INT, "Teste: corpo generico forcado na nave (-1 = nao)");
++    Console_RegisterCvar("pilot_decorships", &PilotDecorShips, CONSOLE_CVAR_BOOL, "Naves Esmer do cenario (deserto, Lua) viram veiculos");
 +    Console_RegisterCvar("dbg_showbody", &DbgShowBody, CONSOLE_CVAR_INT, "Teste: mostra o corpo N do BODY.HQR no lugar do heroi");
 +    Console_RegisterCvar("dbg_showanim", &DbgShowAnim, CONSOLE_CVAR_INT, "Teste: anim HQR usada com dbg_showbody");
 +    Console_RegisterCommandEx("pilot_list", cmd_pilotlist, "Naves: lista atores grandes da cena", "pilot_list", NULL);
@@ -927,14 +962,15 @@ index 92659a8..4079034 100644
  
      ChoicePalette();
 diff --git a/SOURCES/EXTFUNC.CPP b/SOURCES/EXTFUNC.CPP
-index fa69bf6..65c9b78 100644
+index fa69bf6..ba2c122 100644
 --- a/SOURCES/EXTFUNC.CPP
 +++ b/SOURCES/EXTFUNC.CPP
-@@ -8,6 +8,12 @@
+@@ -8,6 +8,13 @@
   *══════════════════════════════════════════════════════════════════════════*/
  
  #include "C_EXTERN.H"
 +#include "ORBIT.H"
++#include "SPACE.H"
 +#include "SWIM.H"
 +#include "JETFREE.H"
 +#include "PILOT.H"
@@ -943,7 +979,7 @@ index fa69bf6..65c9b78 100644
  #include "DIRECTORIES.H"
  #include "INPUT.H"
  
-@@ -300,6 +306,13 @@ void InitGrilleExt(U32 numcube) {
+@@ -300,6 +307,13 @@ void InitGrilleExt(U32 numcube) {
  
          FixeObjetsDecorsInvisibles();
      } else {
@@ -957,7 +993,7 @@ index fa69bf6..65c9b78 100644
  #ifdef DEMO
          // Grosse rustine pour ne pas voir les plaques d'égouts
          ListVarGame[164] = 1;
-@@ -1138,6 +1151,8 @@ void DoAnimExt(U8 numobj) {
+@@ -1138,6 +1152,8 @@ void DoAnimExt(U8 numobj) {
      T_OBJET *ptrobj;
      S32 n;
      S32 validepos = TRUE;
@@ -966,7 +1002,7 @@ index fa69bf6..65c9b78 100644
      S32 oldcarryby;
      S32 oldworkflags;
      U8 col;
-@@ -1147,6 +1162,14 @@ void DoAnimExt(U8 numobj) {
+@@ -1147,6 +1163,14 @@ void DoAnimExt(U8 numobj) {
      if (APtObj->Obj.Body.Num == -1)
          return;
  
@@ -981,7 +1017,7 @@ index fa69bf6..65c9b78 100644
      OldX = APtObj->OldPosX;
      OldY = APtObj->OldPosY;
      OldZ = APtObj->OldPosZ;
-@@ -1512,11 +1535,18 @@ void DoAnimExt(U8 numobj) {
+@@ -1512,11 +1536,18 @@ void DoAnimExt(U8 numobj) {
  
      FlagHeroOutX = FlagHeroOutZ = FALSE;
      PhantomX = PhantomY = 0; // peut etre sorti ailleurs
@@ -1000,7 +1036,7 @@ index fa69bf6..65c9b78 100644
          if (numobj == NUM_PERSO) {
  #ifdef LBA_EDITOR
              if (!strcasecmp(APtObj->StringAnim, GEN_ANIM_CHOC)
-@@ -1564,7 +1594,27 @@ void DoAnimExt(U8 numobj) {
+@@ -1564,7 +1595,27 @@ void DoAnimExt(U8 numobj) {
      if (!GereCodesJeu(numobj))
          validepos = FALSE;
  
@@ -1028,7 +1064,7 @@ index fa69bf6..65c9b78 100644
              AND(numobj == NUM_PERSO)
                  AND(APtObj->CarryBy == -1 OR APtObj->CarryBy & CARRY_BY_DECORS)
                      AND((Comportement != C_PROTOPACK) // on ne meurre pas en marche jetpack
-@@ -1580,7 +1630,7 @@ void DoAnimExt(U8 numobj) {
+@@ -1580,7 +1631,7 @@ void DoAnimExt(U8 numobj) {
          index = (CurrentCubeY + PhantomY) * 16 + (CurrentCubeX + PhantomX);
          index = IsleMapIndex[index] & 127; // bug compilo ou debug ?
  
@@ -1037,7 +1073,7 @@ index fa69bf6..65c9b78 100644
          {
              // allez, on va mourir dans le cube phantom !
              NewCube = NUM_CUBE_PHANTOM;
-@@ -1635,6 +1685,14 @@ void DoAnimExt(U8 numobj) {
+@@ -1635,6 +1686,14 @@ void DoAnimExt(U8 numobj) {
          }
      }
  
@@ -1052,7 +1088,19 @@ index fa69bf6..65c9b78 100644
      APtObj->Obj.X = Nxw;
      APtObj->Obj.Y = Nyw;
      APtObj->Obj.Z = Nzw;
-@@ -2025,10 +2083,10 @@ static S32 ApplyManualCameraNudge(S32 dBeta, S32 dAlpha, S32 dZoom) {
+@@ -2002,6 +2061,11 @@ void FollowCamAdoptAngle(void) {
+ static S32 ApplyManualCameraNudge(S32 dBeta, S32 dAlpha, S32 dZoom) {
+     S32 changed = 0;
+ 
++    if (Space_Active()) { // mod: no espaco o mouse gira a camera em volta da nave
++        Space_CamNudge(dBeta, dAlpha, dZoom);
++        return (dBeta OR dAlpha OR dZoom) ? 1 : 0;
++    }
++
+     if (dBeta != 0) {
+         /* Remember the speed the player is orbiting at, so releasing can ease out
+          * from it rather than stop on the spot. */
+@@ -2025,10 +2089,10 @@ static S32 ApplyManualCameraNudge(S32 dBeta, S32 dAlpha, S32 dZoom) {
      }
      if (dAlpha != 0) {
          AlphaCam += dAlpha;
@@ -1067,7 +1115,7 @@ index fa69bf6..65c9b78 100644
          FollowCamPlayerTook(FALSE, TRUE); /* after the clamp: it remembers the pitch as the player left it */
          FirstTime = AFF_ALL_FLIP;
          changed = 1;
-@@ -2430,9 +2488,10 @@ S32 GereExtKeys(U32 key)
+@@ -2430,9 +2494,10 @@ S32 GereExtKeys(U32 key)
                  S32 rawY = MouseYDep;
  
                  /* Dead zone on raw pixels before scaling */
@@ -1080,6 +1128,17 @@ index fa69bf6..65c9b78 100644
                      rawY = 0;
  
                  S32 dx = rawX * MouseCameraSensX / MouseCameraDivisor;
+@@ -2448,7 +2513,9 @@ S32 GereExtKeys(U32 key)
+                 flag |= ApplyManualCameraNudge(
+                     0, 0, wy * FOLLOW_CAM_ZOOM_STEP * MOUSE_CAM_ZOOM_MULT);
+ 
+-            if (Click & 4) {
++            if ((Click & 4) AND Space_Active())
++                Space_CamCenter();
++            else if (Click & 4) {
+                 CameraCenter(1);
+                 FirstTime = AFF_ALL_FLIP;
+                 flag = 1;
 diff --git a/SOURCES/FICHE.CPP b/SOURCES/FICHE.CPP
 index 5428ad7..9442780 100644
 --- a/SOURCES/FICHE.CPP
@@ -2270,11 +2329,12 @@ index 0000000..240765d
 +
 +#endif
 diff --git a/SOURCES/PERSO.CPP b/SOURCES/PERSO.CPP
-index e1914ac..dd659b9 100644
+index e1914ac..dac0f14 100644
 --- a/SOURCES/PERSO.CPP
 +++ b/SOURCES/PERSO.CPP
-@@ -1,4 +1,8 @@
+@@ -1,4 +1,9 @@
  #include "C_EXTERN.H"
++#include "WORLDMAP.H"
 +#include "SWIM.H"
 +#include "JETFREE.H"
 +#include "PILOT.H"
@@ -2282,7 +2342,7 @@ index e1914ac..dd659b9 100644
  
  #include <SYSTEM/INPUT_FLOW.H>
  #include <POLYGON/POLYFILT.H>
-@@ -336,6 +340,10 @@ void InitGame(int argc) {
+@@ -336,6 +341,10 @@ void InitGame(int argc) {
      ListVarGame[FLAG_CLOVER] = NB_CLOVER_DEFAULT;
      NbCloverBox = NB_CLOVER_BOX_DEFAULT;
      FlagWater = FALSE;
@@ -2293,12 +2353,21 @@ index e1914ac..dd659b9 100644
      NumObjFollow = NUM_PERSO;
      SaveComportement = Comportement = C_NORMAL;
  
+@@ -468,6 +477,8 @@ S32 MainLoop() {
+ restartloop:
+ 
+     FirstTime = AFF_ALL_FLIP;
++    if (FlagLoadGame)
++        World_AfterLoad(); // mapa aberto (modo historia): a ilha do save conta como visitada
+     FlagLoadGame = FALSE;
+ 
+     InitWaitNoKey();
 diff --git a/SOURCES/PILOT.CPP b/SOURCES/PILOT.CPP
 new file mode 100644
-index 0000000..3c51199
+index 0000000..4a075d9
 --- /dev/null
 +++ b/SOURCES/PILOT.CPP
-@@ -0,0 +1,1466 @@
+@@ -0,0 +1,1593 @@
 +/* PILOT.CPP - Pilotar naves e veiculos (mod). Ver PILOT.H. */
 +
 +#include "C_EXTERN.H"
@@ -2313,6 +2382,8 @@ index 0000000..3c51199
 +#include "OBJECT.H"
 +#include "INPUT.H"
 +#include "3DEXT/MAPTOOLS.H"
++#include "3DEXT/VAR_EXT.H"
++#include "3DEXT/DECORS.H"
 +#include "INTEXT.H"
 +#include "AMBIANCE.H"
 +
@@ -2528,6 +2599,8 @@ index 0000000..3c51199
 +            continue;
 +        if (o->Obj.Body.Num == -1 OR(o->WorkFlags & OBJ_DEAD))
 +            continue;
++        if (o->Flags & INVISIBLE)
++            continue; // ator escondido (ex.: o barco invisivel ao lado da balsa do Deserto)
 +        if (IsExcluded(o->Obj.Body.Num))
 +            continue;
 +        size = ObjSize(o);
@@ -2700,6 +2773,8 @@ index 0000000..3c51199
 +    LogPrintf("Pilot: saiu da nave\n");
 +}
 +
++static void DecorShipsUpdate(void);
++
 +void Pilot_HeroPos(S32 *x, S32 *y, S32 *z) {
 +    T_OBJET *hero = &ListObjet[NUM_PERSO];
 +    S32 vdown, edge, dt, fwd, back, turn, strafe, vert, target, step, ground, oldSX, oldSZ;
@@ -2719,6 +2794,8 @@ index 0000000..3c51199
 +    if (dt < 0 OR dt > 100)
 +        dt = 0;
 +    LastTime = TimerRefHR;
++
++    DecorShipsUpdate();
 +
 +    if (!PilotOn) {
 +        if (edge AND PilotEnabled AND CubeMode == CUBE_EXTERIEUR)
@@ -2911,6 +2988,15 @@ index 0000000..3c51199
 +            ShipZ = oldSZ;
 +        }
 +        CurSpeed = CurSpeed / 2; // perde velocidade na batida
++        if (WorldDbg)
++        {
++            T_DECORS *dc = ListDecors;
++            U32 k;
++            for (k = 0; k < (U32)NbObjDecors; k++, dc++)
++                if (TestZVDecors(ShipX, ShipY + 300, ShipZ, dc) OR TestZVDecors(oldSX, ShipY + 300, ShipZ, dc) OR TestZVDecors(ShipX, ShipY + 300, oldSZ, dc))
++                    LogPrintf("Pilot: batida no cenario em %d,%d,%d (cubo %d) decor %u body %d box %d..%d %d..%d %d..%d\n", ShipX, ShipY, ShipZ, NumCube, k, dc->Body,
++                              dc->XMin, dc->XMax, dc->YMin, dc->YMax, dc->ZMin, dc->ZMax);
++        }
 +    }
 +
 +    World_DomeBlock(&ShipX, ShipY, &ShipZ); // modo historia: cupula da ilha bloqueada
@@ -3379,9 +3465,9 @@ index 0000000..3c51199
 +            continue;
 +        if (ObjSize(o) < PilotMinSize)
 +            continue;
-+        LogPrintf("PILOTLIST cube %d obj %d body %d file3d %d gen %d size %d y %d pos %d,%d,%d%s\n", NumCube, n,
-+                  o->Obj.Body.Num, o->IndexFile3D, o->GenBody, ObjSize(o), o->YMax - o->YMin, o->Obj.X, o->Obj.Y, o->Obj.Z,
-+                  IsExcluded(o->Obj.Body.Num) ? " (excluido)" : "");
++        LogPrintf("PILOTLIST cube %d obj %d body %d file3d %d gen %d size %d y %d pos %d,%d,%d flags %08X work %08X life %d%s\n",
++                  NumCube, n, o->Obj.Body.Num, o->IndexFile3D, o->GenBody, ObjSize(o), o->YMax - o->YMin, o->Obj.X, o->Obj.Y,
++                  o->Obj.Z, (U32)o->Flags, (U32)o->WorkFlags, (int)o->LifePoint, IsExcluded(o->Obj.Body.Num) ? " (excluido)" : "");
 +    }
 +}
 +
@@ -3403,7 +3489,117 @@ index 0000000..3c51199
 +    // LastTime fica: o relogio continua do outro lado (SaveTimer/RestoreTimer)
 +}
 +
++
++/* ------------------------------------------------------------------------
++   Naves Esmer do cenario viram veiculos
++   Algumas naves Esmer sao parte do cenario (objeto do decor da ilha), nao
++   atores: a do deserto de Twinsun e a que pousa na Lua Esmeralda. No lugar de
++   cada uma entra uma nave de verdade (File3D 47, a mesma do porto de Otringal)
++   e a do cenario some (DEC_INVISIBLE: sem desenho e sem colisao). A nave
++   criada leva uma marca (Info2 = cubo, Info3 = ESHIP_MARK | decor), gravada no
++   save: enquanto ela existir, o decor fica escondido; se ela foi levada para
++   outro lugar e ficou la, ao voltar a nave reaparece no lugar dela.
++   ------------------------------------------------------------------------ */
++#define ESHIP_MARK 0x45534800 // "ESH"
++#ifndef DEC_MOD_HIDE
++#define DEC_MOD_HIDE (1 << 24) // ver 3DEXT/LBA_EXT.H
++#endif
++typedef struct {
++    const char *isle;
++    S32 lib;
++} T_DECOR_SHIP;
++static const T_DECOR_SHIP DecorShips[] = {
++    {"desert", 49},   // Ilha do Deserto (Twinsun)
++    {"moon", 21},     // Lua Esmeralda
++    {"emeraude", 21}, // Lua Esmeralda (outra parte)
++};
++S32 PilotDecorShips = TRUE; // cvar "pilot_decorships"
++
++static S32 IsDecorShip(T_DECORS *dc) {
++    S32 i, lib = dc->Body & 0xFFFF;
++    for (i = 0; i < (S32)(sizeof(DecorShips) / sizeof(DecorShips[0])); i++)
++        if (lib == DecorShips[i].lib AND !strcasecmp(IslandName, DecorShips[i].isle))
++            return TRUE;
++    return FALSE;
++}
++
++static S32 FindDecorShipActor(S32 dec) {
++    S32 n;
++    for (n = 1; n < NbObjets; n++)
++        if (ListObjet[n].IndexFile3D == ESMER_FILE3D_ID AND ListObjet[n].Info3 == (S32)(ESHIP_MARK | dec)
++                AND ListObjet[n].Info2 == NumCube)
++            return n;
++    if (PilotOn AND PilotObj >= 0 AND ShipBackup.Info3 == (S32)(ESHIP_MARK | dec) AND ShipBackup.Info2 == NumCube)
++        return PilotObj;
++    return -1;
++}
++
++static S32 SpawnDecorShip(S32 dec, T_DECORS *dc) {
++    T_OBJET *o;
++    S32 n;
++    if (NbObjets >= MAX_OBJETS)
++        return -1;
++    n = NbObjets++;
++    InitObject((U8)n);
++    o = &ListObjet[n];
++    o->IndexFile3D = ESMER_FILE3D_ID;
++    o->PtrFile3D = LoadFile3D(o->IndexFile3D);
++    o->GenBody = GEN_BODY_NORMAL;
++    o->GenAnim = GEN_ANIM_RIEN;
++    o->Flags = NO_PRE_CLIP | OBJ_ZBUFFER;
++    o->OffsetLife = -1;
++    o->OffsetTrack = -1;
++    o->Obj.X = dc->Xworld;
++    o->Obj.Y = dc->Yworld;
++    o->Obj.Z = dc->Zworld;
++    o->Obj.Beta = dc->Beta & 4095;
++    o->Info2 = NumCube;
++    o->Info3 = (S32)(ESHIP_MARK | dec);
++    StartInitObj((U8)n);
++    o->OffsetLife = -1; // sem roteiro (StartInitObj poe 0)
++    o->OffsetTrack = -1;
++    o->PtrLife = NULL;
++    o->PtrTrack = NULL;
++    if (o->Obj.Body.Num == -1) { // corpo nao carregou: desiste
++        NbObjets--;
++        return -1;
++    }
++    LogPrintf("Pilot: nave Esmer do cenario (cubo %d, decor %d) virou veiculo (objeto %d)\n", NumCube, dec, n);
++    return n;
++}
++
++// esconde as naves do cenario que ja viraram veiculo; cria as que faltam
++static void DecorShipsUpdate(void) {
++    T_DECORS *dc = ListDecors;
++    S32 i;
++    if (!PilotEnabled OR !PilotDecorShips OR !dc OR CubeMode != CUBE_EXTERIEUR OR NumCube < 0 OR Space_Active())
++        return;
++    for (i = 0; i < NbObjDecors AND i < 256; i++, dc++) {
++        if (!IsDecorShip(dc))
++            continue;
++        if (FindDecorShipActor(i) >= 0) {
++            dc->Body |= DEC_MOD_HIDE | DEC_INVISIBLE;
++            continue;
++        }
++        dc->Body &= ~DEC_MOD_HIDE;
++        {
++            S32 nv = dc->Beta >> 16; // a historia ainda nao pos a nave ali?
++            if (nv AND ((nv < 0 AND !ListVarGame[-nv]) OR (nv > 0 AND ListVarGame[nv])))
++                continue;
++        }
++        if (SpawnDecorShip(i, dc) >= 0)
++            dc->Body |= DEC_MOD_HIDE | DEC_INVISIBLE;
++    }
++}
++
++static void AfterSceneInitCore(void);
++
 +void Pilot_AfterSceneInit(void) {
++    AfterSceneInitCore();
++    DecorShipsUpdate();
++}
++
++static void AfterSceneInitCore(void) {
 +    T_OBJET *o;
 +    S32 n;
 +    if (ParkPending) {
@@ -3767,10 +3963,10 @@ index 0000000..3c51199
 +}
 diff --git a/SOURCES/PILOT.H b/SOURCES/PILOT.H
 new file mode 100644
-index 0000000..4d9e5b3
+index 0000000..173f706
 --- /dev/null
 +++ b/SOURCES/PILOT.H
-@@ -0,0 +1,53 @@
+@@ -0,0 +1,54 @@
 +/* PILOT.H - Pilotar naves e veiculos (mod)
 + *
 + * Perto de uma nave (qualquer ator grande da cena), V entra e V sai.
@@ -3788,6 +3984,7 @@ index 0000000..4d9e5b3
 +extern S32 PilotMinSize; // tamanho minimo (ZV) para contar como nave
 +extern S32 PilotTest;
 +extern S32 PilotFlySample; // som do voo da nave Esmer (cvar pilot_flysnd)
++extern S32 PilotDecorShips; // naves Esmer do cenario viram veiculos (cvar pilot_decorships)
 +extern S32 PilotDbgAnim, PilotDbgBody, DbgShowBody, DbgShowAnim;    // automacao: bits 1=V 2=E 4=Q 8=A 16=D
 +
 +S32 Pilot_Active(void);
@@ -4077,10 +4274,10 @@ index 0000000..51aa4ad
 +#endif
 diff --git a/SOURCES/SPACE.CPP b/SOURCES/SPACE.CPP
 new file mode 100644
-index 0000000..5f121bc
+index 0000000..3912e64
 --- /dev/null
 +++ b/SOURCES/SPACE.CPP
-@@ -0,0 +1,752 @@
+@@ -0,0 +1,811 @@
 +/* SPACE.CPP - Mini espaco (mod). Ver SPACE.H.
 + *
 + * Desenhado inteiro aqui, pixel a pixel, no lugar da cena: ceu estrelado, os
@@ -4116,6 +4313,13 @@ index 0000000..5f121bc
 +#include <stdlib.h>
 +#include <string.h>
 +
++#define SPACE_CAM_DIST 15000
++#define SPACE_CAM_DIST_MIN 9000
++#define SPACE_CAM_DIST_MAX 40000
++#define SPACE_CAM_OFFA_MIN -1000 // camera bem abaixo da nave (olhando para cima)
++#define SPACE_CAM_OFFA_MAX 700   // camera bem acima
++#define SPACE_CAM_YAW_SIGN -1.0
++
 +S32 SpaceEnabled = TRUE;
 +S32 SpaceDbg = 0;
 +
@@ -4144,6 +4348,11 @@ index 0000000..5f121bc
 +static double PX, PY, PZ;       // posicao da nave
 +static double Yaw, Pitch;       // direcao
 +static double Speed, TurnVel, Roll;
++// camera pelo mouse (mesmas unidades do motor: 4096 = volta inteira)
++static double CamOffB = 0.0, CamOffA = 0.0; // giro em volta da nave / inclinacao
++static S32 CamDist = SPACE_CAM_DIST;
++static U32 CamLastMouse = 0;
++#define SPACE_CAM_BACK_MS 2500 // depois de soltar o mouse, a camera volta para tras da nave
 +static U32 HoldFwdSince = 0;
 +static S32 FromPlanet = 0;
 +
@@ -4348,6 +4557,8 @@ index 0000000..5f121bc
 +    LutOk = FALSE;
 +    BuildLut();
 +    Active = TRUE;
++    Space_CamCenter();
++    CamDist = SPACE_CAM_DIST;
 +    PlayMusic(SPACE_JINGLE, TRUE); // a musica da Lua Esmeralda
 +    if (SpaceDbg)
 +        LogPrintf("Space: entrou no espaco saindo de %s (ilha %d)\n", pl->name, isl);
@@ -4420,6 +4631,34 @@ index 0000000..5f121bc
 +
 +/* ---------------------------------------------------------------- pilotar */
 +
++void Space_CamNudge(S32 dBeta, S32 dAlpha, S32 dZoom) {
++    if (!Active)
++        return;
++    CamOffB += dBeta;
++    while (CamOffB > 2048)
++        CamOffB -= 4096;
++    while (CamOffB < -2048)
++        CamOffB += 4096;
++    CamOffA += dAlpha;
++    if (CamOffA < SPACE_CAM_OFFA_MIN)
++        CamOffA = SPACE_CAM_OFFA_MIN;
++    if (CamOffA > SPACE_CAM_OFFA_MAX)
++        CamOffA = SPACE_CAM_OFFA_MAX;
++    CamDist -= dZoom * 4;
++    if (CamDist < SPACE_CAM_DIST_MIN)
++        CamDist = SPACE_CAM_DIST_MIN;
++    if (CamDist > SPACE_CAM_DIST_MAX)
++        CamDist = SPACE_CAM_DIST_MAX;
++    if (dBeta OR dAlpha)
++        CamLastMouse = TimerRefHR;
++}
++
++void Space_CamCenter(void) {
++    CamOffB = 0.0;
++    CamOffA = 0.0;
++    CamLastMouse = 0;
++}
++
 +void Space_Update(S32 dt, S32 fwd, S32 back, S32 turn, S32 vert) {
 +    double dts = dt / 1000.0, fx, fy, fz, vmax;
 +    S32 p;
@@ -4440,6 +4679,14 @@ index 0000000..5f121bc
 +        Pitch = 1.3;
 +    if (Pitch < -1.3)
 +        Pitch = -1.3;
++    // mouse parado um tempo: a camera volta devagar para tras da nave
++    if (TimerRefHR - CamLastMouse > SPACE_CAM_BACK_MS) {
++        double k = dts * 2.0;
++        if (k > 1.0)
++            k = 1.0;
++        CamOffB -= CamOffB * k;
++        CamOffA -= CamOffA * k;
++    }
 +
 +    // motor: no espaco a nave mantem o embalo
 +    if (fwd) {
@@ -4512,8 +4759,17 @@ index 0000000..5f121bc
 +
 +static void MakeCam(T_SCAM *c) {
 +    // camera atras e acima da nave, olhando para ela (como o motor a desenha)
-+    double camPitch = Pitch - 0.25; // um pouco abaixo: o destino aparece acima da nave
-+    double dx = cos(camPitch) * sin(Yaw), dy = sin(camPitch), dz = cos(camPitch) * cos(Yaw);
++    // um pouco abaixo: o destino aparece acima da nave; o mouse gira e inclina
++    double camPitch = Pitch - 0.25 - CamOffA * (2.0 * PI / 4096.0);
++    double camYaw = Yaw + SPACE_CAM_YAW_SIGN * CamOffB * (2.0 * PI / 4096.0);
++    double dx, dy, dz;
++    if (camPitch > 1.45)
++        camPitch = 1.45;
++    if (camPitch < -1.45)
++        camPitch = -1.45;
++    dx = cos(camPitch) * sin(camYaw);
++    dy = sin(camPitch);
++    dz = cos(camPitch) * cos(camYaw);
 +    double l;
 +    c->fx = dx;
 +    c->fy = dy;
@@ -4796,7 +5052,7 @@ index 0000000..5f121bc
 +        o->Alpha = 0;
 +        o->Beta = 0;
 +        o->Gamma = ((S32)(Roll * 2048.0 / PI)) & 4095;
-+        SetFollowCamera(o->X, o->Y, o->Z, 300, 2048, 0, 15000);
++        SetFollowCamera(o->X, o->Y, o->Z, (300 + (S32)CamOffA) & 4095, (2048 - (S32)CamOffB) & 4095, 0, CamDist);
 +        SetLightVector(800, 1024, 0);
 +        Switch_Fillers(FILL_POLY_TEXTURES);
 +        {
@@ -4835,10 +5091,10 @@ index 0000000..5f121bc
 +}
 diff --git a/SOURCES/SPACE.H b/SOURCES/SPACE.H
 new file mode 100644
-index 0000000..eefc4a7
+index 0000000..b018ddc
 --- /dev/null
 +++ b/SOURCES/SPACE.H
-@@ -0,0 +1,32 @@
+@@ -0,0 +1,36 @@
 +/* SPACE.H - Mini espaco (mod): subindo com a nave Esmer acima de certa altura,
 + * entra-se num espaco estrelado com Twinsun, a Lua Esmeralda e Zeelich como
 + * esferas (texturas do holomapa). Pilota-se ate um deles e, chegando perto,
@@ -4863,6 +5119,10 @@ index 0000000..eefc4a7
 +
 +// Pilotagem no espaco (chamado no lugar do voo normal). dt em ms.
 +void Space_Update(S32 dt, S32 fwd, S32 back, S32 turn, S32 vert);
++
++// Camera pelo mouse no espaco (giro, inclinacao e zoom, unidades do motor)
++void Space_CamNudge(S32 dBeta, S32 dAlpha, S32 dZoom);
++void Space_CamCenter(void);
 +
 +// Desenha o espaco inteiro (no lugar da cena). Chamado no inicio do AffScene.
 +void Space_Draw(void);
@@ -5212,10 +5472,10 @@ index 0000000..51eef0d
 +#endif
 diff --git a/SOURCES/WORLDMAP.CPP b/SOURCES/WORLDMAP.CPP
 new file mode 100644
-index 0000000..bf594f2
+index 0000000..daed8c5
 --- /dev/null
 +++ b/SOURCES/WORLDMAP.CPP
-@@ -0,0 +1,1280 @@
+@@ -0,0 +1,1296 @@
 +/* WORLDMAP.CPP - Mapa aberto (mod). Ver WORLDMAP.H.
 + *
 + * Cada ilha e uma grade 16x16 de areas (cubos) de 32768 unidades. Aqui cada
@@ -5278,12 +5538,15 @@ index 0000000..bf594f2
 +   Com a chave "worldstory" (alem de "world"), uma ilha so pode ser
 +   alcancada pelo mapa aberto depois de liberada na historia: o jogador ja
 +   chegou nela pelo caminho do jogo (gravado num bit da variavel de jogo
-+   STORY_VAR, que vai junto no save) ou o capitulo atual ja passou dela
-+   (saves de antes do mod). A borda para uma ilha bloqueada vira uma parede
-+   branca transparente com o aviso; o mesmo vale para os planetas no espaco. */
++   STORY_VAR, que vai junto no save). So conta chegar numa ilha DIFERENTE da
++   cena anterior por uma troca de cena do proprio jogo (barco, cena de
++   cinema, script): andar por portas de uma ilha alcancada pelo mapa aberto
++   nao libera nada; a ilha onde o save foi feito tambem conta. A ilha bloqueada fica sob uma cupula transparente; o
++   mesmo vale para os planetas no espaco. */
++#define WORLD_GROUP_MOON 3 // grupo da Lua Esmeralda no WorldIsle
 +S32 WorldStory = FALSE;
-+#define STORY_VAR 220 // variavel de jogo livre (nenhuma cena usa de 200 a 234)
-+static const S8 IslandChapter[12] = {0, 0, 2, 3, 5, 6, 7, 7, 7, 8, 8, 7};
++#define STORY_VAR 221 // variavel de jogo livre (nenhuma cena usa de 200 a 234)
++static S32 LastLoadedIsland = -1;   // ilha da cena carregada antes
 +static S32 WorldCausedLoad = FALSE; // a proxima cena foi carregada pelo mapa aberto
 +
 +S32 World_IslandUnlocked(S32 isl) {
@@ -5291,9 +5554,7 @@ index 0000000..bf594f2
 +        return TRUE;
 +    if (isl == 0)
 +        return TRUE;
-+    if (ListVarGame[STORY_VAR] & (1 << isl))
-+        return TRUE;
-+    return ListVarGame[FLAG_CHAPTER] >= IslandChapter[isl];
++    return (ListVarGame[STORY_VAR] & (1 << isl)) != 0;
 +}
 +
 +S32 World_Active(void) {
@@ -5491,7 +5752,10 @@ index 0000000..bf594f2
 +        }
 +        NewCube = scene;
 +    } else {
-+        S32 d, owner = NearestIsle(g, wx, wz, isl, &d);
++        S32 d, owner;
++        if (g == WORLD_GROUP_MOON)
++            return WORLD_BLOCKED; // a Lua nao tem mar: fora das areas e o fim do mapa
++        owner = NearestIsle(g, wx, wz, isl, &d);
 +        if (owner < 0 OR d > WORLD_MARGIN)
 +            return WORLD_BLOCKED;
 +        if (inset < 0 AND WorldSmooth AND (NumCube == NUM_CUBE_PHANTOM OR Pilot_Active())) {
@@ -5561,11 +5825,23 @@ index 0000000..bf594f2
 +        LogPrintf("World: carregando a cena adiada %d\n", DefScene);
 +}
 +
++// depois de carregar um save (as variaveis de jogo ja vieram do save): um save
++// so existe onde o jogador ja estava (com o modo historia uma ilha bloqueada nem
++// se alcanca), entao a ilha do save conta como visitada
++void World_AfterLoad(void) {
++    if (WorldEnabled AND NumCube != NUM_CUBE_PHANTOM AND Island >= 0 AND Island < 12)
++        ListVarGame[STORY_VAR] |= (S16)(1 << Island);
++}
++
 +void World_SceneLoaded(void) {
 +    Deferred = FALSE;
-+    // chegou nesta ilha pelo caminho do jogo: fica liberada (vai no save)
-+    if (WorldEnabled AND !WorldCausedLoad AND !FlagLoadGame AND Island >= 0 AND Island < 12)
++    // chegou nesta ilha vindo de outra pelo caminho do jogo: fica liberada
++    // (vai no save). Carregar um save so lembra a ilha, nao libera.
++    if (WorldEnabled AND !WorldCausedLoad AND !FlagLoadGame AND Island >= 0 AND Island < 12
++            AND LastLoadedIsland >= 0 AND LastLoadedIsland != Island)
 +        ListVarGame[STORY_VAR] |= (S16)(1 << Island);
++    if (Island >= 0 AND Island < 12)
++        LastLoadedIsland = (NumCube == NUM_CUBE_PHANTOM) ? PhantomIsland : Island;
 +    WorldCausedLoad = FALSE;
 +    if (!RememberInit) {
 +        memset(Remember, 0, sizeof(Remember));
@@ -6498,10 +6774,10 @@ index 0000000..bf594f2
 +}
 diff --git a/SOURCES/WORLDMAP.H b/SOURCES/WORLDMAP.H
 new file mode 100644
-index 0000000..3d2b7ff
+index 0000000..8999b3d
 --- /dev/null
 +++ b/SOURCES/WORLDMAP.H
-@@ -0,0 +1,60 @@
+@@ -0,0 +1,61 @@
 +/* WORLDMAP.H - Mapa aberto (mod): todas as ilhas de um planeta num mapa so.
 + *
 + * Twinsun (Cidadela + Deserto), Zeelich (Otringal, Celebracao, Knartas,
@@ -6544,6 +6820,7 @@ index 0000000..3d2b7ff
 +
 +// Fim do LoadScene: corrige planeta/musica no mar aberto e memoriza a cena.
 +void World_SceneLoaded(void);
++void World_AfterLoad(void); // save carregado: a ilha dele conta como visitada (modo historia)
 +
 +// Teste (console): leva o heroi para o mar na direcao dada.
 +void World_Teleport(S32 island, S32 cx, S32 cy, S32 x, S32 y, S32 z);
@@ -6564,7 +6841,7 @@ index 0000000..3d2b7ff
 +#endif
 diff --git a/SOURCES/WORLDMAP_DATA.H b/SOURCES/WORLDMAP_DATA.H
 new file mode 100644
-index 0000000..27ec696
+index 0000000..4fc60db
 --- /dev/null
 +++ b/SOURCES/WORLDMAP_DATA.H
 @@ -0,0 +1,94 @@
@@ -6652,7 +6929,7 @@ index 0000000..27ec696
 +    {0, 0, 0},
 +    {-1, 0, 0},
 +    {0, -9, -6},
-+    {-1, 0, 0},
++    {3, 0, 0}, // Lua Esmeralda: as 4 areas viram um mapa (sem mar em volta)
 +    {1, 0, 0},
 +    {1, -4, -10},
 +    {2, 0, 0},
